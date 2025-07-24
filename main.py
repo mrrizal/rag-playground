@@ -3,8 +3,8 @@ import argparse
 from ingestion import (
     CloneService,
     PythonCodeParserService,
-    REPO_BASE_DIR
 )
+from config import Config
 
 
 if __name__ == "__main__":
@@ -20,12 +20,12 @@ if __name__ == "__main__":
         clone_service.clone_python_code()
 
     if args.parse and args.name:
-        repo_path = os.path.join(REPO_BASE_DIR, args.name)
+        repo_path = os.path.join(Config.REPO_BASE_DIR, args.name)
         if os.path.exists(repo_path):
             parser_service = PythonCodeParserService(repo_path)
             chunks = parser_service.parse_code()
-            for chunk in chunks:
-                print(f"Chunk: {chunk['name']} ({chunk['type']})")
-                print(f"Code:\n{chunk['code']}\n")
+            from pprint import pprint
+            pprint(chunks)
+            exit(0)
         else:
             print(f"Repository {repo_path} does not exist. Please clone it first.")

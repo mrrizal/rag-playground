@@ -19,6 +19,28 @@ class CodeParserService(ABC):
 
 
 class PythonCodeParserService(CodeParserService):
+    def extract_chunk_metadata(self, node, chunk_code, class_name=None, class_docstring=None, filepath=None) -> Dict:
+        filename = filepath.split(os.sep)[-1] if filepath else None
+
+        return {
+            "type": type(node).__name__,
+            "name": getattr(node, "name", None),
+            "code": chunk_code,
+            "start_line": getattr(node, "lineno", None),
+            "end_line": getattr(node, "end_lineno", None),
+            "docstring": ast.get_docstring(node),
+            "class_name": class_name,
+            "class_docstring": class_docstring,
+            "method_name": node.name if isinstance(node, ast.FunctionDef) else None,
+            "is_async": isinstance(node, ast.AsyncFunctionDef),
+            "is_function": isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)),
+            "is_static": any(isinstance(d, ast.Name) and d.id == 'staticmethod' for d in getattr(node, "decorator_list", [])),
+            "is_classmethod": any(isinstance(d, ast.Name) and d.id == 'classmethod' for d in getattr(node, "decorator_list", [])),
+            "is_property": any(isinstance(d, ast.Name) and d.id == 'property' for d in getattr(node, "decorator_list", [])),
+            "filepath": filepath if filepath else None,
+            "filename": filename if filename else None
+        }
+
     def extract_node_code(self, node, original_code: str) -> str:
         """Extract source code for a specific AST node with proper indentation"""
         lines = original_code.split('\n')
@@ -33,7 +55,7 @@ class PythonCodeParserService(CodeParserService):
 
         return dedented_code
 
-    def extract_methods_from_class(self, code: str, class_node: ast.ClassDef) -> List[Dict]:
+    def extract_methods_from_class(self, code: str, class_node: ast.ClassDef, filepath: str) -> List[Dict]:
         """
         Parse class code and extract each method as a separate chunk
         """
@@ -49,27 +71,18 @@ class PythonCodeParserService(CodeParserService):
                 if method_code.strip() == "":
                     continue
 
-                chunks.append({
-                    'type': 'method',
-                    'name': item.name,
-                    'class_name': class_name,
-                    'method_name': item.name,
-                    'code': method_code,
-                    'docstring': ast.get_docstring(item),
-                    'class_docstring': class_docstring,
-                    'is_static': any(isinstance(d, ast.Name) and d.id == 'staticmethod'
-                                for d in item.decorator_list),
-                    'is_classmethod': any(isinstance(d, ast.Name) and d.id == 'classmethod'
-                                        for d in item.decorator_list),
-                    'is_property': any(isinstance(d, ast.Name) and d.id == 'property'
-                                    for d in item.decorator_list),
-                    'start_line': item.lineno,
-                    'end_line': item.end_lineno
-                })
+                chunk = self.extract_chunk_metadata(
+                    item,
+                    method_code,
+                    class_name=class_name,
+                    class_docstring=class_docstring,
+                    filepath=filepath
+                )
+                chunks.append(chunk)
 
         return chunks
 
-    def chunk_python_code(self, code: str, max_chunk_size: int = 1000) -> List[Dict]:
+    def chunk_python_code(self, code: str, max_chunk_size: int = 1000, filepath: str = None) -> List[Dict]:
         """
         Chunk Python code based on AST nodes (functions, classes, etc.)
         """
@@ -86,20 +99,18 @@ class PythonCodeParserService(CodeParserService):
                 lines = code.split('\n')
                 chunk_code = '\n'.join(lines[start_line-1:end_line])
 
-                chunks.append({
-                    'type': type(node).__name__,
-                    'name': node.name,
-                    'code': chunk_code,
-                    'start_line': start_line,
-                    'end_line': end_line,
-                    'docstring': ast.get_docstring(node)
-                })
+                if isinstance(node, ast.ClassDef) and node.name == "Migration":
+                    continue  # Skip Migration class
+
+                chunk = self.extract_chunk_metadata(node, chunk_code, filepath=filepath)
+                chunks.append(chunk)
 
                 if isinstance(node, ast.ClassDef):
                     # Extract methods from the class
                     class_chunks = self.extract_methods_from_class(
                         chunk_code,
-                        node
+                        node,
+                        filepath=filepath
                     )
                     chunks.extend(class_chunks)
 
@@ -119,6 +130,6 @@ class PythonCodeParserService(CodeParserService):
         for file_path in self.get_python_files(self.repo_path):
             with open(file_path, 'r') as file:
                 code = file.read()
-                file_chunks = self.chunk_python_code(code)
+                file_chunks = self.chunk_python_code(code, filepath=file_path)
                 chunks.extend(file_chunks)
         return chunks
