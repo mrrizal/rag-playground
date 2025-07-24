@@ -1,32 +1,11 @@
 import os
 import ast
 import textwrap
-import argparse
 from abc import ABC, abstractmethod
-from git import Repo
 from typing import List, Dict
 
-REPO_BASE_DIR = "./repo"
 
-class CloneService:
-    def __init__(self, repo_url: str, name: str = 'repo'):
-        self.repo_url = repo_url
-        self.name = name
-
-    def clone_python_code(self):
-        print(f"Cloning repository from {self.repo_url} into {REPO_BASE_DIR}/{self.name}")
-        if not os.path.exists(REPO_BASE_DIR):
-            os.makedirs(REPO_BASE_DIR)
-
-        repo_dir = os.path.join(REPO_BASE_DIR, self.name)
-
-        if not os.path.exists(repo_dir):
-            Repo.clone_from(self.repo_url, repo_dir)
-
-        print(f"Repository cloned into {repo_dir}")
-
-
-class CodeParserService:
+class CodeParserService(ABC):
     def __init__(self, repo_path: str):
         self.repo_path = repo_path
 
