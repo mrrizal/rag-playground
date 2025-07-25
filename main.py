@@ -8,6 +8,43 @@ from ingestion import (
 from config import Config
 
 
+def get_similar_code(results: dict) -> str:
+    index_document = []
+    for index, distance in enumerate(results['distances'][0]):
+        if distance > 0.55:
+            continue
+        index_document.append(index)
+
+    similary_code = ""
+    for index in index_document:
+        doc = results['documents'][0][index]
+        similary_code += doc
+        similary_code += "\n\n" + ("---" * 20) + "\n\n"
+
+    similary_code = similary_code.strip()
+    if not similary_code:
+        return ""
+    return similary_code
+
+
+def build_coding_style_prompt(code: str) -> str:
+    prompt = f"""
+    You are an expert in Python coding style. Please analyze the following code snippet check for:
+    - Naming consistency
+    - DRY and clean code principles
+    - Appropriate use of design patterns
+    - Violations of SOLID principles (SRP, OCP, LSP, ISP, DIP)
+    - Opportunities for simplification or refactoring
+
+    Code:
+    {code.strip()}
+    ```
+
+    Provide your feedback in a concise manner.
+    """
+    return prompt.strip()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Chunk Python code from a Git repository.")
     parser.add_argument('--repo-url', type=str, help='URL of the Git repository to clone')
@@ -48,26 +85,50 @@ if __name__ == "__main__":
     if args.query:
         indexing_service = ChromaDBIndexingService()
         # query = """
-        # find similar code:
-        #     serializer = self.get_serializer(data=request.data)
-        #     serializer.is_valid(raise_exception=True)
-        #     self.perform_create(serializer)
+        # serializer = self.get_serializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
+        # self.perform_create(serializer)
 
-        #     n_variant = len(serializer.data['variants'])
-        #     message = f"success create 1 product with {n_variant} variants"
-        #     if n_variant <= 1:
-        #         message = f"success create 1 product with {n_variant} variant"
+        # n_variant = len(serializer.data['variants'])
+        # message = f"success create 1 product with {n_variant} variants"
+        # if n_variant <= 1:
+        #     message = f"success create 1 product with {n_variant} variant"
+        # """
+        # query = """
+        # try:
+        #     created_at_gte = to_indonesia_timezone(
+        #         f'{created_at_gte}T00:00:00', datetime_format)
+        #     queryset = queryset.filter(created_at__gte=created_at_gte)
+        # except ValueError:
+        #     return Response(empty_result)
         # """
         query = """
-        find similar code:
-            try:
-                created_at_gte = to_indonesia_timezone(
-                    f'{created_at_gte}T00:00:00', datetime_format)
-                queryset = queryset.filter(created_at__gte=created_at_gte)
-            except ValueError:
-                return Response(empty_result)
+        @api_view(["GET", "POST"])
+        def user_list_create(request):
+            if request.method == "GET":
+                return Response(users)
+
+            elif request.method == "POST":
+                name = request.data.get("name")
+                email = request.data.get("email")
+
+                if not name or not email:
+                    return Response(
+                        {"error": "Name and email are required."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                user = {"id": len(users) + 1, "name": name, "email": email}
+                users.append(user)
+                return Response(user, status=status.HTTP_201_CREATED)
         """
+
         results = indexing_service.query_code(query, n_results=5)
-        for code in results['documents'][0]:
-            print(code)
-            print("-----------------")
+        similar_code = get_similar_code(results)
+        if not similar_code:
+            promt = build_coding_style_prompt(query.strip())
+            print(promt)
+        else:
+
+
+        # pprint(summary_lines)
