@@ -47,29 +47,27 @@ if __name__ == "__main__":
 
     if args.query:
         indexing_service = ChromaDBIndexingService()
-        query = """
-        find similar code:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-
-            n_variant = len(serializer.data['variants'])
-            message = f"success create 1 product with {n_variant} variants"
-            if n_variant <= 1:
-                message = f"success create 1 product with {n_variant} variant"
-        """
         # query = """
         # find similar code:
-        #     try:
-        #         created_at_gte = to_indonesia_timezone(
-        #             f'{created_at_gte}T00:00:00', datetime_format)
-        #         queryset = queryset.filter(created_at__gte=created_at_gte)
-        #     except ValueError:
-        #         return Response(empty_result)
+        #     serializer = self.get_serializer(data=request.data)
+        #     serializer.is_valid(raise_exception=True)
+        #     self.perform_create(serializer)
+
+        #     n_variant = len(serializer.data['variants'])
+        #     message = f"success create 1 product with {n_variant} variants"
+        #     if n_variant <= 1:
+        #         message = f"success create 1 product with {n_variant} variant"
         # """
-        results = indexing_service.query_code(query.strip(), n_results=5)
-        # from pprint import pprint
-        # pprint(results)
+        query = """
+        find similar code:
+            try:
+                created_at_gte = to_indonesia_timezone(
+                    f'{created_at_gte}T00:00:00', datetime_format)
+                queryset = queryset.filter(created_at__gte=created_at_gte)
+            except ValueError:
+                return Response(empty_result)
+        """
+        results = indexing_service.query_code(query, n_results=5)
         for code in results['documents'][0]:
             print(code)
             print("-----------------")

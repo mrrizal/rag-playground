@@ -1,65 +1,11 @@
+
 from abc import ABC, abstractmethod
 import chromadb
 from chromadb.config import Settings
-from chromadb.utils import embedding_functions
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import hashlib
 import chromadb.errors
-import torch
-from transformers import AutoTokenizer, AutoModel
-import numpy as np
 
-
-class CodeBERTEmbeddingFunction(embedding_functions.EmbeddingFunction):
-    """Custom embedding function using CodeBERT for code understanding"""
-
-    def __init__(self, model_name: str = "microsoft/codebert-base"):
-        """
-        Initialize CodeBERT embedding function.
-
-        Args:
-            model_name: HuggingFace model name for CodeBERT
-        """
-        self.model_name = model_name
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model.to(self.device)
-        self.model.eval()
-
-    def __call__(self, input: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for the input texts using CodeBERT.
-
-        Args:
-            input: List of text strings to embed
-
-        Returns:
-            List of embedding vectors
-        """
-        embeddings = []
-
-        with torch.no_grad():
-            for text in input:
-                # Tokenize with truncation to handle long code snippets
-                inputs = self.tokenizer(
-                    text,
-                    padding=True,
-                    truncation=True,
-                    max_length=512,  # CodeBERT's max sequence length
-                    return_tensors="pt"
-                ).to(self.device)
-
-                # Get the model outputs
-                outputs = self.model(**inputs)
-
-                # Use the [CLS] token embedding (first token) as the representation
-                # Alternative: could use mean pooling of all tokens
-                cls_embedding = outputs.last_hidden_state[:, 0, :].cpu().numpy()
-
-                embeddings.append(cls_embedding.flatten().tolist())
-
-        return embeddings
 
 class IndexingService(ABC):
     collection = None
@@ -102,11 +48,6 @@ class ChromaDBIndexingService(IndexingService):
             collection_name: Name of the ChromaDB collection
             persist_directory: Directory to persist the database
         """
-
-        self.embedding_function = CodeBERTEmbeddingFunction(
-            model_name="microsoft/codebert-base"
-        )
-
         # Initialize ChromaDB client with persistence
         self.client = chromadb.PersistentClient(
             path=persist_directory,
@@ -117,8 +58,7 @@ class ChromaDBIndexingService(IndexingService):
         )
 
         self.collection = self.client.get_or_create_collection(
-            collection_name,
-            embedding_function=self.embedding_function
+            collection_name
         )
 
     def prepare_documents_for_indexing(self, chunks: List[Dict[str, Any]]) -> tuple:
