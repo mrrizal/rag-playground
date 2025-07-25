@@ -28,36 +28,23 @@ class CodeBERTEmbeddingFunction(embedding_functions.EmbeddingFunction):
         self.model.eval()
 
     def __call__(self, input: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for the input texts using CodeBERT.
-
-        Args:
-            input: List of text strings to embed
-
-        Returns:
-            List of embedding vectors
-        """
         embeddings = []
 
         with torch.no_grad():
             for text in input:
-                # Tokenize with truncation to handle long code snippets
-                inputs = self.tokenizer(
-                    text,
-                    padding=True,
-                    truncation=True,
-                    max_length=512,  # CodeBERT's max sequence length
-                    return_tensors="pt"
-                ).to(self.device)
+                inputs = self.tokenizer(text, padding=True, truncation=True,
+                                    max_length=512, return_tensors="pt").to(self.device)
 
-                # Get the model outputs
                 outputs = self.model(**inputs)
+                last_hidden = outputs.last_hidden_state
 
-                # Use the [CLS] token embedding (first token) as the representation
-                # Alternative: could use mean pooling of all tokens
-                cls_embedding = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+                # Weighted combination (empirically determined weights)
+                cls_embedding = last_hidden[:, 0, :] * 0.6  # Primary emphasis
+                mean_embedding = torch.mean(last_hidden, dim=1) * 0.3
+                max_embedding, _ = torch.max(last_hidden, dim=1) * 0.1
 
-                embeddings.append(cls_embedding.flatten().tolist())
+                combined = cls_embedding + mean_embedding + max_embedding
+                embeddings.append(combined.cpu().numpy().flatten().tolist())
 
         return embeddings
 

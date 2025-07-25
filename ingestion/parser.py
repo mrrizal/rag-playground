@@ -380,6 +380,14 @@ class PythonCodeParserService(CodeParserService):
                 if isinstance(node, ast.ClassDef) and node.name == "Migration":
                     continue  # Skip Migration class
 
+                if node.name in [
+                    "__init__",
+                    "__str__",
+                    "__repr__",
+                    "__call__"
+                ]:
+                    continue
+
                 chunk = self.extract_chunk_metadata(node, chunk_code, filepath=filepath)
                 chunks.append(chunk)
 

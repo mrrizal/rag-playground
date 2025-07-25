@@ -4,6 +4,6 @@ from ingestion.clone import (
 from ingestion.parser import (
     PythonCodeParserService
 )
-from ingestion.index import (
+from ingestion.index_v2 import (
     ChromaDBIndexingService
 )

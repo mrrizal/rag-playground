@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument('--clone', action='store_true', help='Clone the repository before processing')
     parser.add_argument('--parse', action='store_true', help='Parse the Python code after cloning')
     parser.add_argument('--index', action='store_true', help='Index the parsed code chunks')
+    parser.add_argument('--query', action='store_true', help='Query the indexed code chunks')
     args = parser.parse_args()
 
     if args.clone and args.repo_url and args.name:
@@ -43,3 +44,32 @@ if __name__ == "__main__":
             print(f"Embedded {len(chunks)} code chunks.")
         else:
             print(f"Repository {repo_path} does not exist. Please clone and parse it first.")
+
+    if args.query:
+        indexing_service = ChromaDBIndexingService()
+        query = """
+        find similar code:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+
+            n_variant = len(serializer.data['variants'])
+            message = f"success create 1 product with {n_variant} variants"
+            if n_variant <= 1:
+                message = f"success create 1 product with {n_variant} variant"
+        """
+        # query = """
+        # find similar code:
+        #     try:
+        #         created_at_gte = to_indonesia_timezone(
+        #             f'{created_at_gte}T00:00:00', datetime_format)
+        #         queryset = queryset.filter(created_at__gte=created_at_gte)
+        #     except ValueError:
+        #         return Response(empty_result)
+        # """
+        results = indexing_service.query_code(query.strip(), n_results=5)
+        # from pprint import pprint
+        # pprint(results)
+        for code in results['documents'][0]:
+            print(code)
+            print("-----------------")
