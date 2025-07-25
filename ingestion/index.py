@@ -4,7 +4,11 @@ from chromadb.config import Settings
 from typing import List, Dict, Any
 import hashlib
 
-class EmbeddingService(ABC):
+import chromadb.errors
+
+class IndexingService(ABC):
+    collection = None
+
     @abstractmethod
     def index_chunks(self, chunks: List[Dict[str, Any]], batch_size: int = 100) -> None:
         """
@@ -16,6 +20,7 @@ class EmbeddingService(ABC):
         """
         pass
 
+    @abstractmethod
     def query_code(self, query: str, n_results: int = 5, where: Dict = None) -> Dict:
         """
         Query the code collection.
@@ -31,7 +36,9 @@ class EmbeddingService(ABC):
         raise NotImplementedError("This method should be implemented by subclasses.")
 
 
-class ChromaDBEmbeddingService(EmbeddingService):
+class ChromaDBIndexingService(IndexingService):
+    collection = None
+
     def __init__(self, collection_name: str = "code_repository", persist_directory: str = "./chroma_db"):
         """
         Initialize ChromaDB client and collection for code indexing.
@@ -204,7 +211,7 @@ class ChromaDBEmbeddingService(EmbeddingService):
                     metadatas=batch_metadatas,
                     ids=batch_ids
                 )
-            except Exception as e:
+            except chromadb.errors.DuplicateIDError as e:
                 print(f"Error indexing batch: {e}")
                 # Handle duplicate IDs or other errors
                 for j, doc_id in enumerate(batch_ids):
@@ -225,15 +232,12 @@ class ChromaDBEmbeddingService(EmbeddingService):
         documents, metadatas, ids = self.prepare_documents_for_indexing([chunk])
 
         if documents:
-            try:
-                self.collection.upsert(
-                    documents=documents,
-                    metadatas=metadatas,
-                    ids=ids
-                )
-                print(f"Updated chunk: {ids[0]}")
-            except Exception as e:
-                print(f"Error updating chunk: {e}")
+            self.collection.upsert(
+                documents=documents,
+                metadatas=metadatas,
+                ids=ids
+            )
+            print(f"Updated chunk: {ids[0]}")
 
     def query_code(self, query: str, n_results: int = 5, where: Dict = None) -> Dict:
         """
@@ -247,16 +251,13 @@ class ChromaDBEmbeddingService(EmbeddingService):
         Returns:
             Query results with documents, metadata, and distances
         """
-        try:
-            results = self.collection.query(
-                query_texts=[query],
-                n_results=n_results,
-                where=where
-            )
-            return results
-        except Exception as e:
-            print(f"Query error: {e}")
-            return {"documents": [], "metadatas": [], "distances": []}
+
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=n_results,
+            where=where
+        )
+        return results
 
     def get_collection_stats(self) -> Dict[str, Any]:
         """Get statistics about the indexed collection"""
