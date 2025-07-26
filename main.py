@@ -30,7 +30,9 @@ if __name__ == "__main__":
             if not chunks:
                 print("No code chunks found to embed.")
                 exit(0)
-            indexing_service = ChromaDBIndexingService()
+            indexing_service = ChromaDBIndexingService(
+                collection_name=args.name
+            )
             indexing_service.index_chunks(chunks)
             print(f"Embedded {len(chunks)} code chunks.")
         else:

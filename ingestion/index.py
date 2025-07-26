@@ -39,6 +39,8 @@ class IndexingService(ABC):
 
 class ChromaDBIndexingService(IndexingService):
     collection = None
+    _collection_cache = {}
+    _client = None
 
     def __init__(self, collection_name: str = "code_repository", persist_directory: str = "./chroma_db"):
         """
@@ -48,18 +50,23 @@ class ChromaDBIndexingService(IndexingService):
             collection_name: Name of the ChromaDB collection
             persist_directory: Directory to persist the database
         """
-        # Initialize ChromaDB client with persistence
-        self.client = chromadb.PersistentClient(
-            path=persist_directory,
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True
+        if not ChromaDBIndexingService._client:
+            # Initialize ChromaDB client with persistence
+            self._client = chromadb.PersistentClient(
+                path=persist_directory,
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
             )
-        )
 
-        self.collection = self.client.get_or_create_collection(
-            collection_name
-        )
+        if collection_name in ChromaDBIndexingService._collection_cache:
+            self.collection = ChromaDBIndexingService._collection_cache[collection_name]
+        else:
+            self.collection = ChromaDBIndexingService._client.get_or_create_collection(
+                collection_name
+            )
+            ChromaDBIndexingService._collection_cache[collection_name] = self.collection
 
     def prepare_documents_for_indexing(self, chunks: List[Dict[str, Any]]) -> tuple:
         """
@@ -208,24 +215,12 @@ class ChromaDBIndexingService(IndexingService):
 
             print(f"Indexing batch {i//batch_size + 1}/{(len(documents) + batch_size - 1)//batch_size}")
 
-            try:
-                self.collection.add(
-                    documents=batch_documents,
-                    metadatas=batch_metadatas,
-                    ids=batch_ids
-                )
-            except chromadb.errors.DuplicateIDError as e:
-                print(f"Error indexing batch: {e}")
-                # Handle duplicate IDs or other errors
-                for j, doc_id in enumerate(batch_ids):
-                    try:
-                        self.collection.add(
-                            documents=[batch_documents[j]],
-                            metadatas=[batch_metadatas[j]],
-                            ids=[doc_id]
-                        )
-                    except Exception as inner_e:
-                        print(f"Skipping document {doc_id}: {inner_e}")
+
+            self.collection.upsert(
+                documents=batch_documents,
+                metadatas=batch_metadatas,
+                ids=batch_ids
+            )
 
         print(f"Successfully indexed chunks!")
         print(f"Collection now contains {self.collection.count()} documents")

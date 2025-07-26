@@ -21,6 +21,7 @@ app = FastAPI()
 
 class CodeReviewRequest(BaseModel):
     code: str
+    project_name: str
 
 
 class CodeReviewResponse(BaseModel):
@@ -29,8 +30,8 @@ class CodeReviewResponse(BaseModel):
     summary: str
 
 
-def get_indexing_service():
-    return ChromaDBIndexingService()
+def get_indexing_service(project_name: str = "code_repository"):
+    return ChromaDBIndexingService(collection_name=project_name)
 
 
 def get_prompt_generator():
@@ -44,11 +45,13 @@ def get_code_reviewer():
 @app.post("/code-review", response_model=CodeReviewResponse)
 async def review_code(
     request: CodeReviewRequest,
-    indexing_service: ChromaDBIndexingService = Depends(get_indexing_service),
     prompt_generator: PromptGenerator = Depends(get_prompt_generator),
     code_reviewer: CodeReviewLLM = Depends(get_code_reviewer),
 ):
     code = request.code
+    project_name = request.project_name
+
+    indexing_service = get_indexing_service(project_name)
 
     if not code.strip():
         raise HTTPException(status_code=400, detail="Code snippet cannot be empty.")
