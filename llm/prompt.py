@@ -12,10 +12,12 @@ class PromptGenerator:
         self.base_header = "You are an expert software engineer specializing in Python. Please analyze the following code snippet and check for:"
         self.footer = "Provide your feedback in a concise manner."
 
-    def generate_review_prompt(self, code_snippet: str) -> str:
-        prompt = f"""{self.base_header}
+    def generate_coding_style_prompt(self, code_snippet: str) -> str:
+        prompt = f"""##### Instruction:
+{self.base_header}
 {self.code_quality_prompt}
-new code snippet:
+
+##### Code Snippet:
 ```
 {code_snippet.strip()}
 ```
@@ -32,30 +34,59 @@ new code snippet:
         similar_code = ""
         for counter, index in enumerate(index_document):
             doc = similar_codes['documents'][0][index]
-            similar_code += f"- similar code snippet {counter + 1}:\n"
-            if len(doc) > 500:
-                doc = doc[:500] + "..."
+            similar_code += f"[Code {counter + 1}]\n"
+            if len(doc) > 1000:
+                doc = doc[:1000] + "..."
             similar_code += f"```\n{doc.strip()}\n```\n\n"
 
         return similar_code.strip()
 
     def generate_code_duplication_check_prompt(self, code_snippet: str, similar_codes: dict) -> str:
-        similar_code = self.extract_similar_snippets(similar_codes)
         if not code_snippet.strip():
             return ""
 
+        similar_code = self.extract_similar_snippets(similar_codes)
         if not similar_code:
-            return self.generate_review_prompt(code_snippet)
+            return ""
 
-        prompt = f"""We found similar code snippet(s) in the existing codebase.
-new code snippet:
-```
+        prompt = f"""You are a code reviewer AI specialized in Python. Your task is to identify if the `target_code` has duplicated or similar logic with any of the `reference_code_list`.
+
+##### Target Code:
+```python
 {code_snippet.strip()}
 ```
 
-existing code snippets:
-
+##### Reference Code List:
 {similar_code}
-Focus on the new code snippet. Please analyze duplicated logic and suggest improvements. Provide your feedback in a concise manner."""
 
+##### Task:
+Analyze the target code and check for duplication or similar logic from the reference code list.
+- Point out any overlap or copy-paste behavior.
+- Suggest refactoring if needed.
+- Keep your response short, concise, and in bullet points.
+"""
         return prompt
+
+    def generate_summary_prompt(self, coding_style_result, duplication_check_result) -> str:
+        prompt = f"""
+You are a senior software engineer reviewing the following two LLM-generated code review results:
+
+1. **Duplication Report**: Reviews code for repeated or redundant logic.
+2. **Style Report**: Reviews naming, formatting, structure, and clean code principles.
+
+Your task is to:
+- Merge both results into a single, cohesive summary.
+- Avoid repeating identical or overly verbose points.
+- Highlight the most critical issues and recommend improvements.
+- Use clear, concise language in markdown format.
+- give a final summary of the overall code quality.
+
+Here are the two results:
+
+### Duplication Result:
+{duplication_check_result}
+
+### Style Result:
+{coding_style_result}
+"""
+        return prompt.strip()
