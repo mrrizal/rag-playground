@@ -10,43 +10,6 @@ from pprint import pprint
 from llm.prompt import PromptGenerator
 
 
-def get_similar_code(results: dict) -> str:
-    index_document = []
-    for index, distance in enumerate(results['distances'][0]):
-        if distance > 0.55:
-            continue
-        index_document.append(index)
-
-    similary_code = ""
-    for index in index_document:
-        doc = results['documents'][0][index]
-        similary_code += doc
-        similary_code += "\n\n" + ("---" * 20) + "\n\n"
-
-    similary_code = similary_code.strip()
-    if not similary_code:
-        return ""
-    return similary_code
-
-
-def build_coding_style_prompt(code: str) -> str:
-    prompt = f"""
-    You are an expert software engineering spcially in Python. Please analyze the following code snippet check for:
-    - Naming consistency
-    - DRY and clean code principles
-    - Appropriate use of design patterns
-    - Violations of SOLID principles (SRP, OCP, LSP, ISP, DIP)
-    - Opportunities for simplification or refactoring
-
-    Code:
-    {code.strip()}
-    ```
-
-    Provide your feedback in a concise manner.
-    """
-    return prompt.strip()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Chunk Python code from a Git repository.")
     parser.add_argument('--repo-url', type=str, help='URL of the Git repository to clone')
@@ -128,7 +91,7 @@ if __name__ == "__main__":
         # # """
 
         results = indexing_service.query_code(code_snippet, n_results=5)
-        prompt = prompt_generator.generate_contextual_prompt(code_snippet, results)
+        prompt = prompt_generator.generate_code_duplication_check_prompt(code_snippet, results)
         print(prompt)
 
         # # pprint(summary_lines)
