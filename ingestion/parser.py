@@ -37,7 +37,7 @@ class PythonCodeParserService(CodeParserService):
         metadata = {
             "type": type(node).__name__,
             "name": getattr(node, "name", None),
-            "code": chunk_code,
+            "code": chunk_code.strip(),
             "start_line": getattr(node, "lineno", None),
             "end_line": getattr(node, "end_lineno", None),
             "docstring": ast.get_docstring(node),

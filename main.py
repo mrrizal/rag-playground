@@ -6,6 +6,7 @@ from ingestion import (
     ChromaDBIndexingService
 )
 from config import Config
+from pprint import pprint
 
 
 def get_similar_code(results: dict) -> str:
@@ -64,6 +65,7 @@ if __name__ == "__main__":
         if os.path.exists(repo_path):
             parser_service = PythonCodeParserService(repo_path)
             chunks = parser_service.parse_code()
+            pprint(chunks)
             exit(0)
         else:
             print(f"Repository {repo_path} does not exist. Please clone it first.")
@@ -84,16 +86,16 @@ if __name__ == "__main__":
 
     if args.query:
         indexing_service = ChromaDBIndexingService()
-        # query = """
-        # serializer = self.get_serializer(data=request.data)
-        # serializer.is_valid(raise_exception=True)
-        # self.perform_create(serializer)
+        query = """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
 
-        # n_variant = len(serializer.data['variants'])
-        # message = f"success create 1 product with {n_variant} variants"
-        # if n_variant <= 1:
-        #     message = f"success create 1 product with {n_variant} variant"
-        # """
+        n_variant = len(serializer.data['variants'])
+        message = f"success create 1 product with {n_variant} variants"
+        if n_variant <= 1:
+            message = f"success create 1 product with {n_variant} variant"
+        """
         # query = """
         # try:
         #     created_at_gte = to_indonesia_timezone(
@@ -102,26 +104,26 @@ if __name__ == "__main__":
         # except ValueError:
         #     return Response(empty_result)
         # """
-        query = """
-        @api_view(["GET", "POST"])
-        def user_list_create(request):
-            if request.method == "GET":
-                return Response(users)
+        # query = """
+        # @api_view(["GET", "POST"])
+        # def user_list_create(request):
+        #     if request.method == "GET":
+        #         return Response(users)
 
-            elif request.method == "POST":
-                name = request.data.get("name")
-                email = request.data.get("email")
+        #     elif request.method == "POST":
+        #         name = request.data.get("name")
+        #         email = request.data.get("email")
 
-                if not name or not email:
-                    return Response(
-                        {"error": "Name and email are required."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+        #         if not name or not email:
+        #             return Response(
+        #                 {"error": "Name and email are required."},
+        #                 status=status.HTTP_400_BAD_REQUEST
+        #             )
 
-                user = {"id": len(users) + 1, "name": name, "email": email}
-                users.append(user)
-                return Response(user, status=status.HTTP_201_CREATED)
-        """
+        #         user = {"id": len(users) + 1, "name": name, "email": email}
+        #         users.append(user)
+        #         return Response(user, status=status.HTTP_201_CREATED)
+        # """
 
         results = indexing_service.query_code(query, n_results=5)
         similar_code = get_similar_code(results)
@@ -129,6 +131,9 @@ if __name__ == "__main__":
             promt = build_coding_style_prompt(query.strip())
             print(promt)
         else:
-
+            print(f"Found {len(results['documents'][0])} similar code snippets:")
+            print(similar_code)
+            # Uncomment to use the prompt for coding style analysis
+            # summary_lines = build_coding_style_prompt(similar_code.strip())
 
         # pprint(summary_lines)
