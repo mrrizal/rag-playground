@@ -7,6 +7,7 @@ from ingestion import (
 )
 from config import Config
 from pprint import pprint
+from llm.prompt import PromptGenerator
 
 
 def get_similar_code(results: dict) -> str:
@@ -30,7 +31,7 @@ def get_similar_code(results: dict) -> str:
 
 def build_coding_style_prompt(code: str) -> str:
     prompt = f"""
-    You are an expert in Python coding style. Please analyze the following code snippet check for:
+    You are an expert software engineering spcially in Python. Please analyze the following code snippet check for:
     - Naming consistency
     - DRY and clean code principles
     - Appropriate use of design patterns
@@ -86,7 +87,8 @@ if __name__ == "__main__":
 
     if args.query:
         indexing_service = ChromaDBIndexingService()
-        query = """
+        prompt_generator = PromptGenerator()
+        code_snippet = """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -96,44 +98,37 @@ if __name__ == "__main__":
         if n_variant <= 1:
             message = f"success create 1 product with {n_variant} variant"
         """
-        # query = """
-        # try:
-        #     created_at_gte = to_indonesia_timezone(
-        #         f'{created_at_gte}T00:00:00', datetime_format)
-        #     queryset = queryset.filter(created_at__gte=created_at_gte)
-        # except ValueError:
-        #     return Response(empty_result)
-        # """
-        # query = """
-        # @api_view(["GET", "POST"])
-        # def user_list_create(request):
-        #     if request.method == "GET":
-        #         return Response(users)
+        # # query = """
+        # # try:
+        # #     created_at_gte = to_indonesia_timezone(
+        # #         f'{created_at_gte}T00:00:00', datetime_format)
+        # #     queryset = queryset.filter(created_at__gte=created_at_gte)
+        # # except ValueError:
+        # #     return Response(empty_result)
+        # # """
+        # # query = """
+        # # @api_view(["GET", "POST"])
+        # # def user_list_create(request):
+        # #     if request.method == "GET":
+        # #         return Response(users)
 
-        #     elif request.method == "POST":
-        #         name = request.data.get("name")
-        #         email = request.data.get("email")
+        # #     elif request.method == "POST":
+        # #         name = request.data.get("name")
+        # #         email = request.data.get("email")
 
-        #         if not name or not email:
-        #             return Response(
-        #                 {"error": "Name and email are required."},
-        #                 status=status.HTTP_400_BAD_REQUEST
-        #             )
+        # #         if not name or not email:
+        # #             return Response(
+        # #                 {"error": "Name and email are required."},
+        # #                 status=status.HTTP_400_BAD_REQUEST
+        # #             )
 
-        #         user = {"id": len(users) + 1, "name": name, "email": email}
-        #         users.append(user)
-        #         return Response(user, status=status.HTTP_201_CREATED)
-        # """
+        # #         user = {"id": len(users) + 1, "name": name, "email": email}
+        # #         users.append(user)
+        # #         return Response(user, status=status.HTTP_201_CREATED)
+        # # """
 
-        results = indexing_service.query_code(query, n_results=5)
-        similar_code = get_similar_code(results)
-        if not similar_code:
-            promt = build_coding_style_prompt(query.strip())
-            print(promt)
-        else:
-            print(f"Found {len(results['documents'][0])} similar code snippets:")
-            print(similar_code)
-            # Uncomment to use the prompt for coding style analysis
-            # summary_lines = build_coding_style_prompt(similar_code.strip())
+        results = indexing_service.query_code(code_snippet, n_results=5)
+        prompt = prompt_generator.generate_contextual_prompt(code_snippet, results)
+        print(prompt)
 
-        # pprint(summary_lines)
+        # # pprint(summary_lines)
