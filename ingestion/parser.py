@@ -4,6 +4,7 @@ import textwrap
 from abc import ABC, abstractmethod
 from typing import List, Dict, Set, Optional, Any
 from dataclasses import dataclass, field
+from ingestion.normalizer import normalize_code
 
 
 class CodeParserService(ABC):
@@ -38,6 +39,7 @@ class PythonCodeParserService(CodeParserService):
             "type": type(node).__name__,
             "name": getattr(node, "name", None),
             "code": chunk_code.strip(),
+            "normalized_code": normalize_code(chunk_code.strip()),
             "start_line": getattr(node, "lineno", None),
             "end_line": getattr(node, "end_lineno", None),
             "docstring": ast.get_docstring(node),

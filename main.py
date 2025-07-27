@@ -7,6 +7,7 @@ from ingestion import (
 )
 from config import Config
 from api import app
+from pprint import pprint
 
 
 if __name__ == "__main__":
@@ -27,6 +28,8 @@ if __name__ == "__main__":
         if os.path.exists(repo_path):
             parser_service = PythonCodeParserService(repo_path)
             chunks = parser_service.parse_code()
+            print(len(chunks), "chunks found.")
+            exit(0)
             if not chunks:
                 print("No code chunks found to embed.")
                 exit(0)
